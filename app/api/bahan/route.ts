@@ -27,7 +27,7 @@ export async function GET() {
     }
 
     const bahan = await prisma.bahan.findMany({
-      orderBy: { createdAt: "desc" },
+      orderBy: { id: "desc" },
     });
 
     return NextResponse.json({ success: true, bahan });
