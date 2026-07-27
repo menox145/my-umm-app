@@ -7,10 +7,12 @@ const globalForPrisma = globalThis as unknown as {
 
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL || "mysql://root:@localhost:3306/my_umm";
-  const adapter = new PrismaMariaDb(connectionString);
+  const isTiDB = connectionString.includes("tidbcloud.com");
+  const adapter = new PrismaMariaDb(connectionString, {
+    ssl: isTiDB ? { rejectUnauthorized: true } : undefined,
+  } as any);
   return new PrismaClient({ adapter });
 }
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient();
-
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;

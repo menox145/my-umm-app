@@ -1,3 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum Role {
+  ADMIN
+  KARYAWAN
+  MANAGER
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id String @id @default(cuid())
+  name String
+  email String @unique
+  password String
+  role Role @default(KARYAWAN)
+  lokasiId String?
+  createdAt DateTime @default(now())
+  requests Request[]
+  lokasi Lokasi? @relation(fields: [lokasiId], references: [id])
+}
+
+model Lokasi {
+  id String @id @default(cuid())
+  nama String
+  users User[]
+  requests Request[]
+}
+
+model Bahan {
+  id String @id @default(cuid())
+  nama String @unique
+  stok Int @default(0)
+  satuan String
+  requests Request[]
+}
+
 model Request {
   id String @id @default(cuid())
   bahanId String
@@ -5,7 +52,7 @@ model Request {
   jumlah Int
   jumlahDisetujui Int?
   status RequestStatus @default(PENDING)
-  userId String // simpan ID user, bukan email
+  userId String
   userName String
   lokasiId String?
   catatan String?
@@ -14,6 +61,6 @@ model Request {
   updatedAt DateTime @updatedAt
 
   bahan Bahan @relation(fields: [bahanId], references: [id])
-  user User @relation(fields: [userId], references: [id]) // fix: references id
+  user User @relation(fields: [userId], references: [id])
   lokasi Lokasi? @relation(fields: [lokasiId], references: [id])
 }
