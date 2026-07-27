@@ -1,0 +1,19 @@
+model Request {
+  id String @id @default(cuid())
+  bahanId String
+  bahanNama String
+  jumlah Int
+  jumlahDisetujui Int?
+  status RequestStatus @default(PENDING)
+  userId String // simpan ID user, bukan email
+  userName String
+  lokasiId String?
+  catatan String?
+  respon String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bahan Bahan @relation(fields: [bahanId], references: [id])
+  user User @relation(fields: [userId], references: [id]) // fix: references id
+  lokasi Lokasi? @relation(fields: [lokasiId], references: [id])
+}
