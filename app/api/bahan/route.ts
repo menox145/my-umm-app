@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
     }
 
-    const { nama, stock, satuan, harga, keterangan } = await request.json();
+    const { nama, satuan, keterangan } = await request.json();
 
     const existing = await prisma.bahan.findFirst({ where: { nama } });
     if (existing) {
@@ -53,8 +53,7 @@ export async function POST(request: NextRequest) {
     const bahan = await prisma.bahan.create({
       data: { 
         nama, 
-        satuan: satuan || "unit", 
-        harga: Number(harga) || 0, 
+        satuan: satuan || "unit",
         keterangan: keterangan || null 
       },
     });
@@ -72,14 +71,13 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
     }
 
-    const { id, nama, stock, satuan, harga, keterangan } = await request.json();
+    const { id, nama, satuan, keterangan } = await request.json();
 
     const bahan = await prisma.bahan.update({
       where: { id },
       data: { 
         nama, 
-        satuan: satuan || "unit", 
-        harga: Number(harga) || 0, 
+        satuan: satuan || "unit",
         keterangan: keterangan || null 
       },
     });
