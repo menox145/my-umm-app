@@ -22,14 +22,8 @@ async function getUser() {
 export async function GET() {
   try {
     const user = await getUser();
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    const bahan = await prisma.bahan.findMany({
-      orderBy: { id: "desc" },
-    });
-
+    if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    const bahan = await prisma.bahan.findMany({ orderBy: { nama: "asc" } });
     return NextResponse.json({ success: true, bahan });
   } catch (error) {
     return NextResponse.json({ message: "Error fetching bahan" }, { status: 500 });
@@ -39,25 +33,17 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const isAdmin = await checkAdmin();
-    if (!isAdmin) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
-    }
-
-    const { nama, satuan, keterangan } = await request.json();
-
+    if (!isAdmin) return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
+    const { nama, satuan, stok } = await request.json();
     const existing = await prisma.bahan.findFirst({ where: { nama } });
-    if (existing) {
-      return NextResponse.json({ message: "Nama bahan sudah ada" }, { status: 400 });
-    }
-
+    if (existing) return NextResponse.json({ message: "Nama bahan sudah ada" }, { status: 400 });
     const bahan = await prisma.bahan.create({
-      data: { 
-        nama, 
+      data: {
+        nama,
         satuan: satuan || "unit",
-        keterangan: keterangan || null 
+        stok: Number(stok) || 0,
       },
     });
-
     return NextResponse.json({ success: true, bahan });
   } catch (error) {
     return NextResponse.json({ message: "Error creating bahan" }, { status: 500 });
@@ -67,21 +53,16 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const isAdmin = await checkAdmin();
-    if (!isAdmin) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
-    }
-
-    const { id, nama, satuan, keterangan } = await request.json();
-
+    if (!isAdmin) return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
+    const { id, nama, satuan, stok } = await request.json();
     const bahan = await prisma.bahan.update({
       where: { id },
-      data: { 
-        nama, 
+      data: {
+        nama,
         satuan: satuan || "unit",
-        keterangan: keterangan || null 
+        stok: Number(stok) || 0,
       },
     });
-
     return NextResponse.json({ success: true, bahan });
   } catch (error) {
     return NextResponse.json({ message: "Error updating bahan" }, { status: 500 });
@@ -91,19 +72,11 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const isAdmin = await checkAdmin();
-    if (!isAdmin) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
-    }
-
+    if (!isAdmin) return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
-
-    if (!id) {
-      return NextResponse.json({ message: "ID required" }, { status: 400 });
-    }
-
+    if (!id) return NextResponse.json({ message: "ID required" }, { status: 400 });
     await prisma.bahan.delete({ where: { id } });
-
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ message: "Error deleting bahan" }, { status: 500 });
