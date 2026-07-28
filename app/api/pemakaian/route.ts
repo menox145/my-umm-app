@@ -14,54 +14,23 @@ async function getUser() {
 export async function GET(request: NextRequest) {
   try {
     const user = await getUser();
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
     const { searchParams } = new URL(request.url);
-    const date = searchParams.get("date"); // YYYY-MM-DD format
     const bahanId = searchParams.get("bahanId");
-    const lokasiId = searchParams.get("lokasiId");
 
-    const whereClause: Record<string, any> = {};
+    const whereClause: any = {};
+    if (bahanId) whereClause.bahanId = bahanId;
+    if (user.lokasiId) whereClause.lokasiId = user.lokasiId;
 
-    // Filter by role/location
-    if (user.role === "PEGAWAI") {
-      if (!user.lokasiId) {
-        return NextResponse.json({ success: true, pemakaian: [] });
-      }
-      whereClause.lokasiId = user.lokasiId;
-    } else {
-      if (lokasiId) {
-        whereClause.lokasiId = lokasiId;
-      }
-    }
-
-    // Filter by bahan
-    if (bahanId) {
-      whereClause.bahanId = bahanId;
-    }
-
-    // Filter by date
-    if (date) {
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      whereClause.tanggal = {
-        gte: startOfDay,
-        lte: endOfDay,
-      };
-    }
-
-    const pemakaian = await prisma.pemakaian.findMany({
+    // Pakai model Request sebagai log pemakaian
+    const pemakaian = await prisma.request.findMany({
       where: whereClause,
       include: {
         bahan: { select: { nama: true, satuan: true } },
         lokasi: { select: { nama: true } },
       },
-      orderBy: { tanggal: "desc" },
+      orderBy: { createdAt: "desc" },
     });
 
     return NextResponse.json({ success: true, pemakaian });
@@ -73,82 +42,41 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await getUser();
-    if (!user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-    // Normally Pegawai logs usage, but we can allow any role that has a lokasiId
-    const targetLokasiId = user.lokasiId;
-    if (!targetLokasiId) {
-      return NextResponse.json(
-        { message: "Anda tidak terhubung ke lokasi mana pun untuk melakukan pencatatan pemakaian." },
-        { status: 400 }
-      );
-    }
-
-    const { bahanId, jumlah, tanggal, catatan } = await request.json();
+    const { bahanId, jumlah, catatan } = await request.json();
     const qty = Number(jumlah);
 
-    if (!bahanId || qty <= 0) {
-      return NextResponse.json({ message: "Bahan dan jumlah pemakaian harus valid." }, { status: 400 });
-    }
-
-    // Fetch the material to ensure it exists
     const bahan = await prisma.bahan.findUnique({ where: { id: bahanId } });
-    if (!bahan) {
-      return NextResponse.json({ message: "Bahan tidak ditemukan." }, { status: 404 });
+    if (!bahan) return NextResponse.json({ message: "Bahan tidak ditemukan." }, { status: 404 });
+
+    if (bahan.stok < qty) {
+      return NextResponse.json({ message: `Stok tidak mencukupi. Stok: ${bahan.stok} ${bahan.satuan}` }, { status: 400 });
     }
 
-    // Fetch the stock in the location
-    const stock = await prisma.stock.findUnique({
-      where: {
-        bahanId_lokasiId: {
-          bahanId,
-          lokasiId: targetLokasiId,
-        },
-      },
-    });
-
-    if (!stock || stock.jumlah < qty) {
-      return NextResponse.json(
-        { message: `Stok tidak mencukupi. Stok saat ini: ${stock?.jumlah || 0} ${bahan.satuan}` },
-        { status: 400 }
-      );
-    }
-
-    // Reduce stock and create Pemakaian in a transaction
-    const [updatedStock, pemakaianRecord] = await prisma.$transaction([
-      prisma.stock.update({
-        where: {
-          bahanId_lokasiId: {
-            bahanId,
-            lokasiId: targetLokasiId,
-          },
-        },
-        data: {
-          jumlah: stock.jumlah - qty,
-        },
+    const result = await prisma.$transaction([
+      prisma.bahan.update({
+        where: { id: bahanId },
+        data: { stok: bahan.stok - qty },
       }),
-      prisma.pemakaian.create({
+      prisma.request.create({
         data: {
           bahanId,
           bahanNama: bahan.nama,
-          lokasiId: targetLokasiId,
+          lokasiId: user.lokasiId || null,
           jumlah: qty,
-          tanggal: tanggal ? new Date(tanggal) : new Date(),
-          catatan: catatan || null,
+          jumlahDisetujui: qty,
+          status: "APPROVED",
+          userId: user.id,
+          userName: user.name,
+          catatan: catatan || "Pemakaian",
         },
       }),
     ]);
 
-    return NextResponse.json({
-      success: true,
-      message: "Pemakaian berhasil dicatat",
-      pemakaian: pemakaianRecord,
-      remainingStock: updatedStock.jumlah,
-    });
-  } catch (error: any) {
-    console.error("Error creating usage log:", error);
-    return NextResponse.json({ message: "Gagal mencatat pemakaian bahan." }, { status: 500 });
+    return NextResponse.json({ success: true, pemakaian: result[1], remainingStock: result[0].stok });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ message: "Gagal mencatat pemakaian." }, { status: 500 });
   }
 }
