@@ -35,6 +35,7 @@ model Lokasi {
   nama String
   users User[]
   requests Request[]
+  stocks Stock[]
 }
 
 model Bahan {
@@ -43,6 +44,7 @@ model Bahan {
   stok Int @default(0)
   satuan String
   requests Request[]
+  stocks Stock[]
 }
 
 model Request {
@@ -63,4 +65,16 @@ model Request {
   bahan Bahan @relation(fields: [bahanId], references: [id])
   user User @relation(fields: [userId], references: [id])
   lokasi Lokasi? @relation(fields: [lokasiId], references: [id])
+}
+
+model Stock {
+  id String @id @default(cuid())
+  bahanId String
+  lokasiId String
+  jumlah Int @default(0)
+
+  bahan Bahan @relation(fields: [bahanId], references: [id])
+  lokasi Lokasi @relation(fields: [lokasiId], references: [id])
+
+  @@unique([bahanId, lokasiId], name: "bahanId_lokasiId")
 }
