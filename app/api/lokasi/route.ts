@@ -14,7 +14,7 @@ async function checkAdmin() {
 
 export async function GET() {
   try {
-    const lokasi = await prisma.lokasi.findMany({ orderBy: { createdAt: "asc" } });
+    const lokasi = await prisma.lokasi.findMany({ orderBy: { nama: "asc" } });
     return NextResponse.json({ success: true, lokasi });
   } catch (error) {
     return NextResponse.json({ message: "Error fetching lokasi" }, { status: 500 });
