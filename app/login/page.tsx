@@ -19,7 +19,10 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.message)
+      if (!res.ok) {
+        const errorText = data.error ? `${data.message}: ${data.error}` : data.message
+        throw new Error(errorText)
+      }
 
       localStorage.setItem("user", JSON.stringify(data.user))
       router.push("/dashboard")
