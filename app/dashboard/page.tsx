@@ -71,8 +71,8 @@ export default function Dashboard() {
   }
 
   const isAdmin = user?.role === "ADMIN"
-  const isPengawas = user?.role === "PENGAWAS"
-  const isPegawai = user?.role === "PEGAWAI"
+  const isPengawas = user?.role === "PENGAWAS" || user?.role === "MANAGER"
+  const isPegawai = user?.role === "PEGAWAI" || user?.role === "KARYAWAN"
   const userLokasi = lokasis.find(l => l.id === user?.lokasiId)
 
   return (

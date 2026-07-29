@@ -11,6 +11,7 @@ function createPrismaClient() {
   const adapter = new PrismaMariaDb(connectionString, {
     ssl: isTiDB ? { rejectUnauthorized: true } : undefined,
   } as any);
+
   return new PrismaClient({ adapter });
 }
 
