@@ -58,8 +58,14 @@ export async function POST(req: NextRequest) {
     res.cookies.set("user_data", JSON.stringify(userData), { path: "/", httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production" })
     res.cookies.set("user", email, { path: "/", sameSite: "lax", secure: process.env.NODE_ENV === "production" })
     return res
-  } catch (e) {
+  } catch (e: any) {
     console.error("LOGIN ERROR:", e)
-    return NextResponse.json({ message: "Login gagal. Silakan cek koneksi database dan env Vercel." }, { status: 500 })
+    return NextResponse.json(
+      {
+        message: "Login gagal. Silakan cek koneksi database dan env Vercel.",
+        error: e?.message || String(e),
+      },
+      { status: 500 }
+    )
   }
 }
