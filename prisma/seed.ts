@@ -2,7 +2,7 @@ import { prisma } from '../lib/prisma'
 import bcrypt from 'bcryptjs'
 
 async function main() {
-  console.log('Seeding ke TiDB...')
+  console.log('Seeding database...')
 
   const password = await bcrypt.hash('123456', 10)
 
