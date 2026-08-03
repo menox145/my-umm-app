@@ -20,7 +20,7 @@ interface Request {
   lokasi: { id: string; nama: string } | null
   catatan: string | null
   respon: string | null
-  createdAt: string
+  createdAt: string | Date
 }
 
 export default function RequestPage() {
@@ -114,8 +114,10 @@ export default function RequestPage() {
     }
   }
 
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString("id-ID", { 
+  const formatDate = (date: string | Date) => {
+    const parsed = typeof date === "string" ? new Date(date) : date
+    if (Number.isNaN(parsed.getTime())) return "-"
+    return parsed.toLocaleDateString("id-ID", { 
       day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" 
     })
   }
@@ -140,6 +142,13 @@ export default function RequestPage() {
     setFilterBahan("")
     setFilterStatus("")
   }
+
+  const bahanOptions = Array.from(new Set(requests.map(r => r.bahanNama).filter(Boolean))).map((nama, index) => ({
+    key: `${nama}-${index}`,
+    nama,
+  }))
+
+  const isPrintDisabled = mounted ? filteredRequests.length === 0 : false
 
   const isAdmin = userRole === "ADMIN"
   const isPengawas = userRole === "PENGAWAS"
@@ -225,8 +234,8 @@ export default function RequestPage() {
               className="w-full border-2 border-black rounded-full px-4 py-2 font-bold bg-white text-black outline-none"
             >
               <option value="">Semua Bahan</option>
-              {Array.from(new Set(requests.map(r => r.bahanNama))).map(nama => (
-                <option key={nama} value={nama}>{nama}</option>
+              {bahanOptions.map(option => (
+                <option key={option.key} value={option.nama}>{option.nama}</option>
               ))}
             </select>
           </div>
@@ -252,7 +261,7 @@ export default function RequestPage() {
             </button>
             <button 
               onClick={() => window.print()}
-              disabled={filteredRequests.length === 0}
+              disabled={isPrintDisabled}
               className="flex-1 bg-[#FF6B00] text-white py-2.5 rounded-full font-black text-sm uppercase border-2 border-black shadow-[2px_2px_0px_#000] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               🖨️ Cetak

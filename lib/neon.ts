@@ -262,15 +262,16 @@ export async function updateUser(id: string, input: Partial<UserRecord>) {
   const sql = getSql();
   if (!sql) return null;
   await ensureTables();
-  const rows = await sql`SELECT id, email, password, role, name, lokasiId FROM users WHERE id = ${id} LIMIT 1`;
+  const rows = await sql`SELECT id, email, password, role, name, lokasiid AS lokasiId FROM users WHERE id = ${id} LIMIT 1`;
   if (!rows.length) return null;
   const current = rows[0] as any;
   const hashedPassword = input.password ? await bcrypt.hash(input.password, 10) : current.password;
+  const nextLokasiId = input.lokasiId !== undefined ? input.lokasiId : current.lokasiId;
   const next = {
     ...current,
     ...input,
     password: hashedPassword,
-    lokasiId: input.lokasiId ?? current.lokasiid,
+    lokasiId: nextLokasiId,
   };
   await sql`UPDATE users SET email = ${next.email}, password = ${next.password}, role = ${next.role}, name = ${next.name}, lokasiId = ${next.lokasiId ?? null} WHERE id = ${id}`;
   return {
@@ -408,23 +409,23 @@ export async function listRequests(user?: { id: string; role: string; lokasiId?:
   const rows = await sql`
     SELECT
       r.id,
-      r.bahanId,
-      r.bahanNama,
+      r.bahanid AS "bahanId",
+      r.bahannama AS "bahanNama",
       r.jumlah,
-      r.jumlahDisetujui,
+      r.jumlahdisetujui AS "jumlahDisetujui",
       r.status,
-      r.userId,
-      r.userName,
-      r.lokasiId,
+      r.userid AS "userId",
+      r.username AS "userName",
+      r.lokasiid AS "lokasiId",
       json_build_object('id', l.id, 'nama', l.nama) AS lokasi,
       r.catatan,
       r.respon,
-      r.createdAt,
-      r.updatedAt
+      r.createdat AS "createdAt",
+      r.updatedat AS "updatedAt"
     FROM requests r
-    LEFT JOIN lokasi l ON l.id = r.lokasiId
-    ${filter ? sql`WHERE r.userId = ${user.id}` : sql``}
-    ORDER BY r.createdAt DESC
+    LEFT JOIN lokasi l ON l.id = r.lokasiid
+    ${filter ? sql`WHERE r.userid = ${user.id}` : sql``}
+    ORDER BY r.createdat DESC
   `;
   return rows as RequestRecord[];
 }
