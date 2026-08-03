@@ -6,12 +6,20 @@ import bcrypt from "bcryptjs"
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json()
+    console.log('LOGIN: attempt for', email)
     const user = await findUserByEmail(email)
 
-    if (!user) return NextResponse.json({ message: "User tidak ditemukan" }, { status: 401 })
+    if (!user) {
+      console.log('LOGIN: user not found for', email)
+      return NextResponse.json({ message: "User tidak ditemukan" }, { status: 401 })
+    }
 
     const ok = await bcrypt.compare(password, user.password)
-    if (!ok) return NextResponse.json({ message: "Password salah" }, { status: 401 })
+    console.log('LOGIN: password compare result for', email, ok)
+    if (!ok) {
+      console.log('LOGIN: invalid password for', email)
+      return NextResponse.json({ message: "Password salah" }, { status: 401 })
+    }
 
     const userData = {
       id: user.id,
@@ -24,6 +32,7 @@ export async function POST(req: NextRequest) {
     const res = NextResponse.json({ success: true, user: userData })
     res.cookies.set("user_data", JSON.stringify(userData), { path: "/", httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production" })
     res.cookies.set("user", email, { path: "/", sameSite: "lax", secure: process.env.NODE_ENV === "production" })
+    console.log('LOGIN: success, cookies set for', email)
     return res
   } catch (e: any) {
     console.error("LOGIN ERROR:", e)
