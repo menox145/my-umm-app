@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
+import { createUser, listUsers } from "@/lib/neon";
 
 export const dynamic = "force-dynamic";
 
@@ -20,11 +19,7 @@ export async function GET() {
       return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
     }
 
-    const users = await prisma.user.findMany({
-      select: { id: true, name: true, email: true, role: true, lokasiId: true, createdAt: true },
-      orderBy: { createdAt: "desc" },
-    });
-
+    const users = await listUsers();
     return NextResponse.json({ success: true, users });
   } catch (error) {
     return NextResponse.json({ message: "Error fetching users" }, { status: 500 });
@@ -38,20 +33,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
     }
 
-    const { name, email, password, role, lokasiId } = await request.json();
-
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      return NextResponse.json({ message: "Email already exists" }, { status: 400 });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await prisma.user.create({
-      data: { name, email, password: hashedPassword, role: role || "PEGAWAI", lokasiId: lokasiId || null },
+    const body = await request.json();
+    const user = await createUser({
+      id: body.id,
+      email: body.email,
+      password: body.password,
+      role: body.role || "KARYAWAN",
+      name: body.name,
+      lokasiId: body.lokasiId || null,
     });
 
-    return NextResponse.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role, lokasiId: user.lokasiId } });
+    return NextResponse.json({ success: true, user });
   } catch (error) {
     return NextResponse.json({ message: "Error creating user" }, { status: 500 });
   }

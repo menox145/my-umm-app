@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { prisma } from "@/lib/prisma";
+import { createPemakaian, listPemakaian, getBahanById } from "@/lib/neon";
 
 export const dynamic = "force-dynamic";
 
@@ -16,26 +16,10 @@ export async function GET(request: NextRequest) {
     const user = await getUser();
     if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-    const { searchParams } = new URL(request.url);
-    const bahanId = searchParams.get("bahanId");
-
-    const whereClause: any = {};
-    if (bahanId) whereClause.bahanId = bahanId;
-    if (user.lokasiId) whereClause.lokasiId = user.lokasiId;
-
-    // Pakai model Request sebagai log pemakaian
-    const pemakaian = await prisma.request.findMany({
-      where: whereClause,
-      include: {
-        bahan: { select: { nama: true, satuan: true } },
-        lokasi: { select: { nama: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
+    const pemakaian = await listPemakaian(user);
     return NextResponse.json({ success: true, pemakaian });
-  } catch (error) {
-    return NextResponse.json({ message: "Error fetching usage logs" }, { status: 500 });
+  } catch (error: any) {
+    return NextResponse.json({ message: error?.message || "Error fetching usage logs" }, { status: 500 });
   }
 }
 
@@ -44,39 +28,26 @@ export async function POST(request: NextRequest) {
     const user = await getUser();
     if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-    const { bahanId, jumlah, catatan } = await request.json();
-    const qty = Number(jumlah);
-
-    const bahan = await prisma.bahan.findUnique({ where: { id: bahanId } });
-    if (!bahan) return NextResponse.json({ message: "Bahan tidak ditemukan." }, { status: 404 });
-
-    if (bahan.stok < qty) {
-      return NextResponse.json({ message: `Stok tidak mencukupi. Stok: ${bahan.stok} ${bahan.satuan}` }, { status: 400 });
+    const body = await request.json();
+    const bahan = await getBahanById(body.bahanId);
+    if (!bahan) {
+      return NextResponse.json({ message: "Bahan tidak ditemukan" }, { status: 404 });
     }
 
-    const result = await prisma.$transaction([
-      prisma.bahan.update({
-        where: { id: bahanId },
-        data: { stok: bahan.stok - qty },
-      }),
-      prisma.request.create({
-        data: {
-          bahanId,
-          bahanNama: bahan.nama,
-          lokasiId: user.lokasiId || null,
-          jumlah: qty,
-          jumlahDisetujui: qty,
-          status: "APPROVED",
-          userId: user.id,
-          userName: user.name,
-          catatan: catatan || "Pemakaian",
-        },
-      }),
-    ]);
+    const pemakaian = await createPemakaian({
+      bahanId: body.bahanId,
+      bahanNama: bahan.nama,
+      jumlah: Number(body.jumlah || 0),
+      tanggal: body.tanggal,
+      catatan: body.catatan ?? null,
+      lokasiId: user.lokasiId ?? null,
+      userId: user.id,
+      userName: user.name,
+    });
 
-    return NextResponse.json({ success: true, pemakaian: result[1], remainingStock: result[0].stok });
-  } catch (error) {
+    return NextResponse.json({ success: true, pemakaian });
+  } catch (error: any) {
     console.error(error);
-    return NextResponse.json({ message: "Gagal mencatat pemakaian." }, { status: 500 });
+    return NextResponse.json({ message: error?.message || "Gagal mencatat pemakaian." }, { status: 500 });
   }
 }

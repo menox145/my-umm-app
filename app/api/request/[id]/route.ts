@@ -1,19 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { prisma } from "@/lib/prisma";
+import { updateRequest } from "@/lib/neon";
 
 export const dynamic = "force-dynamic";
 
 async function getUser() {
   const cookieStore = await cookies();
-  const userData = cookieStore.get("user_data"); // harus sama dengan yang di set pas login
+  const userData = cookieStore.get("user_data");
   if (!userData) return null;
   try {
     return JSON.parse(userData.value);
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
-// PERBAIKAN: ambil id dari params, bukan searchParams
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -27,19 +28,20 @@ export async function PUT(
     }
 
     const { id } = await params;
-    const { status } = await request.json();
-
-    if (!id) return NextResponse.json({ message: "ID required" }, { status: 400 });
-    if (!["APPROVED", "REJECTED"].includes(status)) return NextResponse.json({ message: "Status invalid" }, { status: 400 });
-
-    const updated = await prisma.request.update({
-      where: { id },
-      data: { status },
+    const body = await request.json();
+    const requestRecord = await updateRequest(id, {
+      status: body.status,
+      jumlahDisetujui: body.status === "APPROVED" ? Number(body.jumlah || 0) : null,
+      respon: body.respon ?? null,
     });
 
-    return NextResponse.json({ success: true, request: updated });
-  } catch (error) {
+    if (!requestRecord) {
+      return NextResponse.json({ message: "Request tidak ditemukan" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, request: requestRecord });
+  } catch (error: any) {
     console.error(error);
-    return NextResponse.json({ message: "Error updating request" }, { status: 500 });
+    return NextResponse.json({ message: error?.message || "Error updating request" }, { status: 500 });
   }
 }

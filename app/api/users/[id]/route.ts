@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
+import { deleteUser, updateUser } from "@/lib/neon";
 
 export const dynamic = "force-dynamic";
 
@@ -18,24 +17,24 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const isAdmin = await checkAdmin();
     if (!isAdmin) return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
 
+    const body = await request.json();
     const { id } = await params;
-    const { name, email, password, role, lokasiId } = await request.json();
 
-    const updateData: any = {};
-    if (name) updateData.name = name;
-    if (email) updateData.email = email;
-    if (role) updateData.role = role; // ADMIN | KARYAWAN | MANAGER
-    if (password) updateData.password = await bcrypt.hash(password, 10);
-    updateData.lokasiId = lokasiId || null;
-
-    const user = await prisma.user.update({
-      where: { id },
-      data: updateData,
+    const user = await updateUser(id, {
+      email: body.email,
+      role: body.role,
+      name: body.name,
+      lokasiId: body.lokasiId ?? null,
+      password: body.password ? body.password : undefined,
     });
 
-    return NextResponse.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
-  } catch (error) {
-    return NextResponse.json({ message: "Error updating user" }, { status: 500 });
+    if (!user) {
+      return NextResponse.json({ message: "User tidak ditemukan" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, user });
+  } catch (error: any) {
+    return NextResponse.json({ message: error?.message || "Error updating user" }, { status: 500 });
   }
 }
 
@@ -45,10 +44,14 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (!isAdmin) return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
 
     const { id } = await params;
-    await prisma.user.delete({ where: { id } });
+    const deleted = await deleteUser(id);
+
+    if (!deleted) {
+      return NextResponse.json({ message: "User tidak ditemukan" }, { status: 404 });
+    }
 
     return NextResponse.json({ success: true, message: "User deleted" });
-  } catch (error) {
-    return NextResponse.json({ message: "Error deleting user" }, { status: 500 });
+  } catch (error: any) {
+    return NextResponse.json({ message: error?.message || "Error deleting user" }, { status: 500 });
   }
 }
