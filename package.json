@@ -6,6 +6,7 @@
     "dev": "next dev --webpack",
     "dev:turbo": "next dev --turbo",
     "build": "next build",
+    "postinstall": "prisma generate && node ./scripts/setup-prisma-client.cjs",
     "start": "next start",
     "lint": "eslint"
   },
